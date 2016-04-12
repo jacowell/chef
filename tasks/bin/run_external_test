@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Fail fast (e) and echo commands (vx)
+#set -evx
+set -vx
+# Arguments
+TEST_GEM=$1
+shift
+
+PROJECT_ROOT=$(pwd)
+PROJECT_BUNDLE_PATH=${BUNDLE_PATH:-$(grep BUNDLE_PATH: $PROJECT_ROOT/.bundle/config | cut -d' ' -f2-)}
+
+TEST_GEM_ROOT=$(bundle show $TEST_GEM)
+TEST_GEMFILE=$TEST_GEM_ROOT/Gemfile
+
+# Make a copy of the original Gemfile and stitch in our Gemfile.lock
+MODIFIED_TEST_GEMFILE=$TEST_GEMFILE.externaltest
+cp $TEST_GEMFILE $MODIFIED_TEST_GEMFILE
+echo "require_relative '$PROJECT_ROOT/tasks/gemfile_util'" >> $MODIFIED_TEST_GEMFILE
+echo "extend GemfileUtil" >> $MODIFIED_TEST_GEMFILE
+echo "include_locked_gemfile('$PROJECT_ROOT/Gemfile')" >> $MODIFIED_TEST_GEMFILE
+if [ -f $TEST_GEMFILE.lock ]; then
+  cp $TEST_GEMFILE.lock $MODIFIED_TEST_GEMFILE.lock
+else
+  rm -f $MODIFIED_TEST_GEMFILE.lock
+fi
+
+# Run the bundle install
+export BUNDLE_GEMFILE=$MODIFIED_TEST_GEMFILE
+# Use the top level bundle cache so we don't have to reinstall their packages
+if [ -n "$PROJECT_BUNDLE_PATH" ]; then
+  export BUNDLE_PATH=$PROJECT_ROOT/$PROJECT_BUNDLE_PATH
+fi
+cd $TEST_GEM_ROOT
+export BUNDLE_NO_PRUNE=true
+export BUNDLE_FROZEN=
+bundle install
+export BUNDLE_FROZEN=true
+
+# Iterate through the remaining arguments as commands
+while test ${#} -gt 0; do
+  bundle exec $1
+  shift
+done

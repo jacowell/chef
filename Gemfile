@@ -1,27 +1,45 @@
+# This buys us the ability to be included in other Gemfiles
+require_relative "tasks/gemfile_util"
+extend GemfileUtil
+
 source "https://rubygems.org"
-# path is needed because when we attempt to load this gemspec to look at it from
-# another bundle, it will expand the path relative to the other bundle rather than
-# this file.
-gemspec path: File.dirname(__FILE__), name: "chef"
+gemspec name: "chef"
 
 gem "activesupport", "< 4.0.0", group: :compat_testing, platform: "ruby"
 gem "chef-config", path: File.expand_path("../chef-config", __FILE__) if File.exist?(File.expand_path("../chef-config", __FILE__))
 # Ensure that we can always install rake, regardless of gem groups
 gem "rake"
 
+# Go back to released version once the next version is released with working Gemfile
+# Until a version of chef-zero is released with a valid Gemfile.
+gem "chef-zero", github: "chef/chef-zero", ref: "c67095f4da311feb3d63cfd35cb25ee07e49f4b2"
+
 group(:omnibus_package) do
   gem "appbundler"
   gem "rb-readline"
   gem "nokogiri"
 end
-group(:omnibus_package, :development) do
-  gem "cheffish"
+group(:omnibus_package, :test) do
+  # Remove "master" bit when cheffish tests succeed in Ruby 2.2
+  gem "cheffish", github: "chef/cheffish"
 end
 group(:omnibus_package, :pry) do
   gem "pry"
   gem "pry-byebug"
   gem "pry-remote"
   gem "pry-stack_explorer"
+end
+# These are used for external tests
+group(:test) do
+  gem "chef-provisioning"
+  gem "chef-provisioning-aws"
+  gem "chef-rewind"
+  gem "chef-sugar"
+  gem "chefspec"
+  gem "halite"
+  gem "poise"
+  gem "knife-windows"
+  gem "foodcritic"
 end
 
 group(:docgen) do
